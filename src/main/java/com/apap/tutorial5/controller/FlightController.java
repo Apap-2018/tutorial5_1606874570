@@ -6,6 +6,7 @@ import com.apap.tutorial5.service.PilotService;
 import com.apap.tutorial5.service.FlightService;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -32,19 +33,39 @@ public class FlightController {
 	@Autowired
 	private PilotService pilotService;
 	
+
 	@RequestMapping(value = "/flight/add/{licenseNumber}", method = RequestMethod.GET)
 	private String add(@PathVariable(value = "licenseNumber") String licenseNumber, Model model) {
-		System.out.println("masuk " + licenseNumber);
 		FlightModel flight = new FlightModel();
 		PilotModel pilot = pilotService.getPilotDetailByLicenseNumber(licenseNumber);
 		flight.setPilot(pilot);
+		ArrayList<FlightModel> pilotFlight = new ArrayList<>();
+		pilotFlight.add(flight);
+		pilot.setPilotFlight(pilotFlight);
+		
 		model.addAttribute("flight", flight);
+		model.addAttribute("pilot", pilot);
 		return "addFlight";
 	}
 	
-	@RequestMapping(value = "/flight/add", method = RequestMethod.POST)
-	private String addFlightSubmit(@ModelAttribute FlightModel flight) {
-		flightService.addFlight(flight);
+	@RequestMapping(value = "/flight/add/{licenseNumber}", params = {"addRow"}, method = RequestMethod.POST)
+	private String addRow(@ModelAttribute PilotModel pilot, BindingResult bindingResult, Model model) {
+		if(pilot.getPilotFlight()==null) {
+			pilot.setPilotFlight(new ArrayList<FlightModel>());
+		}
+		
+		pilot.getPilotFlight().add(new FlightModel());
+		model.addAttribute("pilot", pilot);
+		return "addFlight";
+	}
+	
+	@RequestMapping(value = "/flight/add/{licenseNumber}", params= {"submit"}, method = RequestMethod.POST)
+	private String addFlightSubmit(@ModelAttribute PilotModel pilot) {
+		PilotModel pilot2 = pilotService.getPilotDetailByLicenseNumber(pilot.getLicenseNumber());
+		for (FlightModel flight : pilot.getPilotFlight()) {
+			flight.setPilot(pilot2);
+			flightService.addFlight(flight);
+		}
 		return "add";
 	}
 	
@@ -78,25 +99,5 @@ public class FlightController {
 			return "view-flight";
 		}
 		return "not-found";
-	}
-    
-    @RequestMapping(value="/flight/add/{licenseNumber}", method = RequestMethod.POST, params= {"addRow"})
-	public String addRow(@ModelAttribute PilotModel pilot, BindingResult bindingResult, Model model) {
-		if (pilot.getPilotFlight() == null) {
-            pilot.setPilotFlight(new ArrayList<FlightModel>());
-        }
-		pilot.getPilotFlight().add(new FlightModel());
-		
-		model.addAttribute("pilot", pilot);
-		return "addFlight";
-	}
-	
-	@RequestMapping(value="/flight/add/{licenseNumber}", method = RequestMethod.POST, params={"removeRow"})
-	public String removeRow(@ModelAttribute PilotModel pilot, final BindingResult bindingResult, final HttpServletRequest req, Model model) {
-	    final Integer rowId = Integer.valueOf(req.getParameter("removeRow"));
-	    pilot.getPilotFlight().remove(rowId.intValue());
-	    
-	    model.addAttribute("pilot", pilot);
-	    return "addFlight";
 	}
 }
